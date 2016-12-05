@@ -6,23 +6,44 @@
 
 
 import sys
+import os
 import getopt
 import subprocess
+import time
+import datetime
 import timeit
 
 
+def appendResults(destPath, startTime, endTime, command, wallclocks):
+    data = {
+        "start":datetime.datetime.utcfromtimestamp(startTime).isoformat() + "Z",
+        "end":datetime.datetime.utcfromtimestamp(endTime).isoformat() + "Z",
+        "command":command,
+        "results":{
+            "wallclock": wallclocks,
+            }
+        }
+
+    fp = open(destPath, "a")
+    json.dump(data, fp)
+    fp.write("\n")
+    fp.close()
+
+
 def usage():
-    print "Usage: %s [-r <num runs>] [-s|--shell] <command line>" % sys.argv[0]
+    print "Usage: %s [-r <num runs>] [-s|--shell] [-f|--file=<result collection file>] <command line>" % sys.argv[0]
 
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hr:s", ["help", "runs=", "shell"])
+        opts, args = getopt.getopt(sys.argv[1:], "hr:sf:", ["help", "runs=", "shell", "file="])
     except getopt.GetoptError as err:
         print str(err)
         usage()
         sys.exit(2)
+
     numRuns = 3
     runInShell = False
+    resultFile = None
     for o, a in opts:
         if o in ("-h", "--help"):
             usage()
@@ -31,6 +52,8 @@ if __name__ == "__main__":
             numRuns = int(a)
         elif o in ("-s", "--shell"):
             runInShell = True
+        elif o in ("-f", "--file"):
+            resultFile = a
         else:
             assert False, "internal error (unhandled option)"
 
@@ -38,12 +61,24 @@ if __name__ == "__main__":
         print "error: -r parameter must be >= 1"
         sys.exit(2)
 
+    command = args
+
+    if resultFile is not None:
+        import json
+        if not(os.path.exists(resultFile)):
+            open(resultFile, "w").close()
+
+    overallStartTime = time.time()
     wallclocks = []
     for i in range(numRuns):
         startTime = timeit.default_timer()
-        subprocess.call(args, shell=runInShell)
+        subprocess.call(command, shell=runInShell)
         endTime = timeit.default_timer()
         wallclocks.append(endTime - startTime)
+    overallEndTime = time.time()
 
     sys.stderr.write("wallclock: avg=%.3fs; range=%.3fs (%.3fs - %.3fs); runs=%d\n" % (
         float(sum(wallclocks))/len(wallclocks), (max(wallclocks)-min(wallclocks)), min(wallclocks), max(wallclocks), len(wallclocks)))
+
+    if resultFile is not None:
+        appendResults(resultFile, overallStartTime, overallEndTime, command, wallclocks)
