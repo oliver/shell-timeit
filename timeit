@@ -14,7 +14,7 @@ import datetime
 import timeit
 
 
-def appendResults(destPath, startTime, endTime, command, wallclocks):
+def appendResults(destPath, message, startTime, endTime, command, wallclocks):
     data = {
         "start":datetime.datetime.utcfromtimestamp(startTime).isoformat() + "Z",
         "end":datetime.datetime.utcfromtimestamp(endTime).isoformat() + "Z",
@@ -23,6 +23,8 @@ def appendResults(destPath, startTime, endTime, command, wallclocks):
             "wallclock": wallclocks,
             }
         }
+    if message is not None:
+        data["message"] = message
 
     fp = open(destPath, "a")
     json.dump(data, fp)
@@ -31,11 +33,11 @@ def appendResults(destPath, startTime, endTime, command, wallclocks):
 
 
 def usage():
-    print "Usage: %s [-r <num runs>] [-s|--shell] [-f|--file=<result collection file>] <command line>" % sys.argv[0]
+    print "Usage: %s [-r <num runs>] [-s|--shell] [-f|--file=<result collection file>] [-m|--message <free-text message>] <command line>" % sys.argv[0]
 
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hr:sf:", ["help", "runs=", "shell", "file="])
+        opts, args = getopt.getopt(sys.argv[1:], "hr:sf:m:", ["help", "runs=", "shell", "file=", "message="])
     except getopt.GetoptError as err:
         print str(err)
         usage()
@@ -44,6 +46,7 @@ if __name__ == "__main__":
     numRuns = 3
     runInShell = False
     resultFile = None
+    message = None
     for o, a in opts:
         if o in ("-h", "--help"):
             usage()
@@ -54,6 +57,8 @@ if __name__ == "__main__":
             runInShell = True
         elif o in ("-f", "--file"):
             resultFile = a
+        elif o in ("-m", "--message"):
+            message = a
         else:
             assert False, "internal error (unhandled option)"
 
@@ -81,4 +86,4 @@ if __name__ == "__main__":
         float(sum(wallclocks))/len(wallclocks), (max(wallclocks)-min(wallclocks)), min(wallclocks), max(wallclocks), len(wallclocks)))
 
     if resultFile is not None:
-        appendResults(resultFile, overallStartTime, overallEndTime, command, wallclocks)
+        appendResults(resultFile, message, overallStartTime, overallEndTime, command, wallclocks)
