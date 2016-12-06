@@ -12,6 +12,7 @@ import subprocess
 import time
 import datetime
 import timeit
+import json
 
 
 def appendResults(destPath, message, startTime, endTime, command, wallclocks):
@@ -32,12 +33,61 @@ def appendResults(destPath, message, startTime, endTime, command, wallclocks):
     fp.close()
 
 
+def parseIsoDatetime(s):
+     return datetime.datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%fZ" )
+
+def readResultFile(srcPath):
+    fp = open(srcPath)
+    rawData = fp.read()
+    fp.close()
+
+    results = []
+    decoder = json.JSONDecoder()
+    while rawData:
+        lineData, length = decoder.raw_decode(rawData)
+        lineData["start"] = parseIsoDatetime(lineData["start"])
+        lineData["end"] = parseIsoDatetime(lineData["end"])
+        results.append(lineData)
+        rawData = rawData[length:].lstrip()
+    return results
+
+
+def createDiagram(destPath, allResults):
+    import matplotlib.pyplot as plt
+
+    xLabels = []
+    wallclockMins = []
+    lastDate = None
+    for r in allResults:
+        if lastDate is None or lastDate != r["start"].date():
+            label = r["start"].strftime("%Y-%d-%m %H:%M:%S")
+        else:
+            label = r["start"].strftime("%H:%M:%S")
+        lastDate = r["start"].date()
+
+        if "message" in r:
+            label = r["message"] + "\n" + label
+        else:
+            label = " ".join(r["command"]) + "\n" + label
+        xLabels.append(label)
+
+        wallclockMins.append(min(r["results"]["wallclock"]))
+
+    fig = plt.figure()
+    ax = fig.add_axes([0.1, 0.2, 0.85, 0.75])
+    ax.set_xlim(0.5, len(wallclockMins)+0.5)
+    ax.bar(range(1, len(wallclockMins)+1), wallclockMins, align="center")
+    ax.xaxis.set_ticks(range(1, len(wallclockMins)+1))
+    ax.xaxis.set_ticklabels(xLabels, rotation=45, fontsize=8)
+    plt.savefig(destPath)
+
+
 def usage():
-    print "Usage: %s [-r <num runs>] [-s|--shell] [-f|--file=<result collection file>] [-m|--message <free-text message>] <command line>" % sys.argv[0]
+    print "Usage: %s [-r <num runs>] [-s|--shell] [-f|--file=<results.json>] [-m|--message <free-text message>] [-o|--output=<output.png/.svg>] <command line>" % sys.argv[0]
 
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hr:sf:m:", ["help", "runs=", "shell", "file=", "message="])
+        opts, args = getopt.getopt(sys.argv[1:], "hr:sf:m:o:", ["help", "runs=", "shell", "file=", "message=", "output="])
     except getopt.GetoptError as err:
         print str(err)
         usage()
@@ -47,6 +97,7 @@ if __name__ == "__main__":
     runInShell = False
     resultFile = None
     message = None
+    outputFiles = []
     for o, a in opts:
         if o in ("-h", "--help"):
             usage()
@@ -59,6 +110,8 @@ if __name__ == "__main__":
             resultFile = a
         elif o in ("-m", "--message"):
             message = a
+        elif o in ("-o", "--output"):
+            outputFiles.append(a)
         else:
             assert False, "internal error (unhandled option)"
 
@@ -68,22 +121,35 @@ if __name__ == "__main__":
 
     command = args
 
-    if resultFile is not None:
-        import json
-        if not(os.path.exists(resultFile)):
-            open(resultFile, "w").close()
+    if not(command) and not(outputFiles):
+        print "error: must specify at least a command or an output file"
+        usage()
+        sys.exit(2)
 
-    overallStartTime = time.time()
-    wallclocks = []
-    for i in range(numRuns):
-        startTime = timeit.default_timer()
-        subprocess.call(command, shell=runInShell)
-        endTime = timeit.default_timer()
-        wallclocks.append(endTime - startTime)
-    overallEndTime = time.time()
+    if command:
+        if resultFile is not None:
+            if not(os.path.exists(resultFile)):
+                open(resultFile, "w").close()
 
-    sys.stderr.write("wallclock: avg=%.3fs; range=%.3fs (%.3fs - %.3fs); runs=%d\n" % (
-        float(sum(wallclocks))/len(wallclocks), (max(wallclocks)-min(wallclocks)), min(wallclocks), max(wallclocks), len(wallclocks)))
+        overallStartTime = time.time()
+        wallclocks = []
+        for i in range(numRuns):
+            startTime = timeit.default_timer()
+            subprocess.call(command, shell=runInShell)
+            endTime = timeit.default_timer()
+            wallclocks.append(endTime - startTime)
+        overallEndTime = time.time()
 
-    if resultFile is not None:
-        appendResults(resultFile, message, overallStartTime, overallEndTime, command, wallclocks)
+        sys.stderr.write("wallclock: avg=%.3fs; range=%.3fs (%.3fs - %.3fs); runs=%d\n" % (
+            float(sum(wallclocks))/len(wallclocks), (max(wallclocks)-min(wallclocks)), min(wallclocks), max(wallclocks), len(wallclocks)))
+
+        if resultFile is not None:
+            appendResults(resultFile, message, overallStartTime, overallEndTime, command, wallclocks)
+
+    if outputFiles:
+        if resultFile is None:
+            raise NotImplementedError("cannot create diagram for single value")
+        else:
+            allResults = readResultFile(resultFile)
+        for path in outputFiles:
+            createDiagram(path, allResults)
