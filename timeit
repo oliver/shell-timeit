@@ -58,7 +58,10 @@ def createDiagram(destPath, allResults):
     xLabels = []
     wallclockMins = []
     wallclockRanges = []
+    pointsX = []
+    pointsY = []
     lastDate = None
+    i = 1
     for r in allResults:
         if lastDate is None or lastDate != r["start"].date():
             label = r["start"].strftime("%Y-%d-%m %H:%M:%S")
@@ -77,12 +80,18 @@ def createDiagram(destPath, allResults):
         wallclockMins.append(wallclockMin)
         wallclockRanges.append(wallclockMax - wallclockMin)
 
+        for t in r["results"]["wallclock"]:
+            pointsX.append(i)
+            pointsY.append(t)
+        i+=1
+
     yErrors = ( [0]*len(wallclockRanges), wallclockRanges )
 
     fig = plt.figure()
     ax = fig.add_axes([0.1, 0.2, 0.85, 0.75])
     ax.set_xlim(0.5, len(wallclockMins)+0.5)
-    ax.bar(range(1, len(wallclockMins)+1), wallclockMins, align="center", yerr=yErrors, ecolor="darkblue")
+    ax.bar(range(1, len(wallclockMins)+1), wallclockMins, align="center", yerr=yErrors, ecolor="black")
+    ax.plot(pointsX, pointsY, "o")
     ax.xaxis.set_ticks(range(1, len(wallclockMins)+1))
     ax.xaxis.set_ticklabels(xLabels, rotation=45, fontsize=8)
     plt.savefig(destPath)
