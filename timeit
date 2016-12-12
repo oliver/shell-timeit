@@ -94,6 +94,7 @@ def createDiagram(destPath, allResults):
     ax.plot(pointsX, pointsY, "o")
     ax.xaxis.set_ticks(range(1, len(wallclockMins)+1))
     ax.xaxis.set_ticklabels(xLabels, rotation=90, fontsize=8)
+    plt.ylabel("Wallclock Time [s]")
     plt.savefig(destPath)
 
 
