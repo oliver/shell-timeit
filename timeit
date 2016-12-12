@@ -93,7 +93,7 @@ def createDiagram(destPath, allResults):
     ax.bar(range(1, len(wallclockMins)+1), wallclockMins, align="center", yerr=yErrors, ecolor="black")
     ax.plot(pointsX, pointsY, "o")
     ax.xaxis.set_ticks(range(1, len(wallclockMins)+1))
-    ax.xaxis.set_ticklabels(xLabels, rotation=45, fontsize=8)
+    ax.xaxis.set_ticklabels(xLabels, rotation=90, fontsize=8)
     plt.savefig(destPath)
 
 
