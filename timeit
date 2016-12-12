@@ -87,14 +87,14 @@ def createDiagram(destPath, allResults):
 
     yErrors = ( [0]*len(wallclockRanges), wallclockRanges )
 
-    fig = plt.figure()
-    ax = fig.add_axes([0.1, 0.2, 0.85, 0.75])
+    fig, ax = plt.subplots()
     ax.set_xlim(0.5, len(wallclockMins)+0.5)
     ax.bar(range(1, len(wallclockMins)+1), wallclockMins, align="center", yerr=yErrors, ecolor="black")
     ax.plot(pointsX, pointsY, "o")
     ax.xaxis.set_ticks(range(1, len(wallclockMins)+1))
     ax.xaxis.set_ticklabels(xLabels, rotation=90, fontsize=8)
     plt.ylabel("Wallclock Time [s]")
+    plt.tight_layout()
     plt.savefig(destPath)
 
 
