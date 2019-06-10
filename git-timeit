@@ -1,0 +1,116 @@
+#!/bin/bash
+
+#
+# git-timeit - run a shell command on different Git revisions and measure the elapsed time.
+#
+# Usage: $0 [-r <num runs>] [-s|--shell] [-f|--file <results.json>] [-o|--output <output.png/.svg>] [-p|--prepare=<preparation shell command>] <Git revision range> <command line>
+# If <Git revision range> is "-", a list of revisions is read from stdin. (TODO)
+#
+
+# TODO:
+# - check that timeit and git are installed
+# - describe how to test very first commit as well
+
+
+baseFileName=./git-timeit-results-$(date +%Y-%m-%dT%H:%M:%S)
+
+prepCmd=
+declare -a testCmd
+declare -a timeitArgs
+resultFile="$baseFileName".json
+outputFile="$baseFileName".png
+
+while [[ $# -gt 0 ]]; do
+    key=$1
+    case $key in
+        -h|--help)
+            echo "Usage: $0 [-r <num runs>] [-s|--shell] [-f|--file <results.json>] [-o|--output <output.png/.svg>] [-p|--prepare=<preparation shell command>] <Git revision range> <command line>"
+            exit 0
+            ;;
+        -r)
+            timeitArgs+=("-r" "$2")
+            shift
+            shift
+            ;;
+        -s|--shell)
+            timeitArgs+=("-s")
+            shift
+            ;;
+        -f|--file)
+            resultFile=$2
+            shift
+            shift
+            ;;
+        -o|--output)
+            outputFile=$2
+            shift
+            shift
+            ;;
+        -p)
+            prepCmd=$2
+            shift
+            shift
+            ;;
+        *)
+            if [ -z "$gitRevRange" ]; then
+                gitRevRange=$1
+            else
+                testCmd+=("$1")
+            fi
+            shift
+    esac
+done
+
+
+if [ ! -d ./.git/ ]; then
+    echo "Error: this must be run in a Git repository."
+    exit 1
+fi
+
+if ! git diff --exit-code; then
+    echo "Error: there are unstaged changes."
+    exit 1
+fi
+
+if ! git diff --cached --exit-code; then
+    echo "Error: there are staged but uncommitted changes."
+    exit 1
+fi
+
+if [ -z "$gitRevRange" ]; then
+    echo "Error: no revision range specified."
+    exit 1
+fi
+
+revisions=$(git rev-list "$gitRevRange" --)
+if [ -z "$revisions" ]; then
+    echo "Error: not a valid revision range: \"$gitRevRange\"."
+    exit 1
+fi
+read -d '' -r -a revList <<< "$revisions"
+echo "testing ${#revList[@]} revisions"
+
+originalBranch=$(git rev-parse --abbrev-ref HEAD)
+
+# iterate over revisions in reverse order:
+for (( idx=${#revList[@]}-1; idx>=0; idx-- )) ; do
+    rev=${revList[idx]}
+    echo "checking out revision \"$rev\""
+
+    git checkout -q "$rev"
+    if [ -n "$prepCmd" ]; then
+        echo "running preparation command: \"$prepCmd\""
+        bash -c "$prepCmd"
+        res=$?
+        if [ $res -ne 0 ]; then
+            echo "preparation command exited with error code $res - continuing."
+        fi
+    fi
+
+    echo "running timeit"
+    revDesc=$(git show -s --pretty=format:"%h %s" "$rev" | cut -c 1-50)
+    timeit "${timeitArgs[@]}" -m "$revDesc" -f "$resultFile" "${testCmd[@]}"
+done
+
+git checkout "$originalBranch"
+timeit -f "$resultFile" -o "$outputFile"
