@@ -11,7 +11,7 @@ Run `dd` for in-memory copying with different block sizes:
 * the command is executed as shell command to allow redirecting output to `/dev/null` (`-s`)
 * results are written to dd.json (`-f dd.json`)
 * a comment is added for every test (`-m ...`)
-* results are afterwards turned into a diagram (`-o dd.svg`)
+* results are afterwards turned into a diagram (`-o dd.png`)
 
 ```shell
 for s in 1 2 5 10 20 50 100 200 500 1000 2000 5000 10000 20000 50000; do
