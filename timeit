@@ -15,6 +15,9 @@ import timeit
 import json
 
 
+ELLIPSIS_CHAR = u"\u2026"
+
+
 def appendResults(destPath, message, startTime, endTime, command, wallclocks):
     data = {
         "start":datetime.datetime.utcfromtimestamp(startTime).isoformat() + "Z",
@@ -72,7 +75,10 @@ def createDiagram(destPath, allResults):
         if "message" in r:
             label = r["message"] + "\n" + label
         else:
-            label = " ".join(r["command"]) + "\n" + label
+            cmd = " ".join(r["command"])
+            if len(cmd) > 50:
+                cmd = cmd[:30] + ELLIPSIS_CHAR + cmd[-17:]
+            label = cmd + "\n" + label
         xLabels.append(label)
 
         wallclockMin = min(r["results"]["wallclock"])
