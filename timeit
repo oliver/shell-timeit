@@ -94,7 +94,12 @@ def createDiagram(destPath, allResults):
     ax.xaxis.set_ticks(range(1, len(wallclockMins)+1))
     ax.xaxis.set_ticklabels(xLabels, rotation=90, fontsize=8)
     plt.ylabel("Wallclock Time [s]")
-    plt.tight_layout()
+    try:
+        plt.tight_layout()
+    except ValueError:
+        # workaround for https://github.com/matplotlib/matplotlib/issues/5456 which occurs with very long labels:
+        print "Note: could not apply tight layout; using default margins instead."
+        ax.margins(0.1, 0.1)
     plt.savefig(destPath)
 
 
