@@ -67,12 +67,12 @@ if [ ! -d ./.git/ ]; then
     exit 1
 fi
 
-if ! git diff --exit-code; then
+if ! git diff --no-patch --exit-code ; then
     echo "Error: there are unstaged changes."
     exit 1
 fi
 
-if ! git diff --cached --exit-code; then
+if ! git diff --cached --no-patch --exit-code; then
     echo "Error: there are staged but uncommitted changes."
     exit 1
 fi
