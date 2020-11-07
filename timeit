@@ -13,20 +13,23 @@ import time
 import datetime
 import timeit
 import json
+import resource
 
 
 ELLIPSIS_CHAR = u"\u2026"
 
 
-def appendResults(destPath, message, startTime, endTime, command, wallclocks):
+def appendResults(destPath, message, startTime, endTime, command, resultMap):
     data = {
         "start":datetime.datetime.utcfromtimestamp(startTime).isoformat() + "Z",
         "end":datetime.datetime.utcfromtimestamp(endTime).isoformat() + "Z",
         "command":command,
-        "results":{
-            "wallclock": wallclocks,
+        "results":{}
             }
-        }
+
+    for key in resultMap.keys():
+        data["results"][key] = resultMap[key]
+
     if message is not None:
         data["message"] = message
 
@@ -159,19 +162,30 @@ if __name__ == "__main__":
                 open(resultFile, "w").close()
 
         overallStartTime = time.time()
-        wallclocks = []
+        results = {"wallclock":[]}
         for i in range(numRuns):
+            startUsage = resource.getrusage(resource.RUSAGE_CHILDREN)
             startTime = timeit.default_timer()
             subprocess.call(command, shell=runInShell)
             endTime = timeit.default_timer()
-            wallclocks.append(endTime - startTime)
+            endUsage = resource.getrusage(resource.RUSAGE_CHILDREN)
+
+            results["wallclock"].append(endTime - startTime)
+            for field in dir(endUsage):
+                if field.startswith("ru_"):
+                    startVal = getattr(startUsage, field)
+                    endVal = getattr(endUsage, field)
+                    if not(field in results):
+                        results[field] = []
+                    results[field].append(endVal - startVal)
         overallEndTime = time.time()
 
+        wallclocks = results["wallclock"]
         sys.stderr.write("wallclock: avg=%.3fs; range=%.3fs (%.3fs - %.3fs); runs=%d\n" % (
             float(sum(wallclocks))/len(wallclocks), (max(wallclocks)-min(wallclocks)), min(wallclocks), max(wallclocks), len(wallclocks)))
 
         if resultFile is not None:
-            appendResults(resultFile, message, overallStartTime, overallEndTime, command, wallclocks)
+            appendResults(resultFile, message, overallStartTime, overallEndTime, command, results)
 
     if outputFiles:
         if resultFile is None:
