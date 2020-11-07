@@ -62,7 +62,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 
-if [ ! -d ./.git/ ]; then
+if ! git rev-parse >/dev/null 2>&1; then
     echo "Error: this must be run in a Git repository."
     exit 1
 fi
