@@ -72,9 +72,7 @@ def createDiagram(destPath, allResults, measurementNameStr):
     # determine columns and bars:
     # (a column may contain multiple bars, which will be stacked)
     columns = []
-    bars = []
-    columnIndex = 0
-    barIndex = 0
+    numBars = 0
     for columnString in measurementNameStr.split(","):
         columns.append({
             "bars": []
@@ -82,9 +80,7 @@ def createDiagram(destPath, allResults, measurementNameStr):
         column = columns[-1]
 
         for barString in columnString.split("+"):
-            bars.append({
-                "columnIndex": columnIndex,
-                "lowerBars": column["bars"][:],
+            column["bars"].append({
                 "measurementName": barString,
                 "barHeights": [],
                 "barBottomOffsets": [],
@@ -92,10 +88,7 @@ def createDiagram(destPath, allResults, measurementNameStr):
                 "pointsX": [],
                 "pointsY": [],
             })
-            column["bars"].append(barIndex)
-            barIndex+=1
-        columnIndex+=1
-
+            numBars+=1
     numColumns = len(columns)
 
     widthOfAllColumns = 0.8
@@ -109,12 +102,12 @@ def createDiagram(destPath, allResults, measurementNameStr):
         i+=1
 
     # set unique color for each bar:
-    colormapFunction = plt.cm.get_cmap("hsv", len(bars) + 1)
+    colormapFunction = plt.cm.get_cmap("hsv", numBars + 1)
     i = 0
-    for bar in bars:
-        bar["color"] = colormapFunction(i)
-        i+=1
-
+    for column in columns:
+        for bar in column["bars"]:
+            bar["color"] = colormapFunction(i)
+            i+=1
 
     # get diagram values
     measurementDesc = measurementNameStr
@@ -140,28 +133,29 @@ def createDiagram(destPath, allResults, measurementNameStr):
 
         xLabels.append(label)
 
-        for bar in bars:
-            column = columns[bar["columnIndex"]]
-            measurementName = bar["measurementName"]
-            if not(measurementName in r["results"]):
-                raise ValueError("measurement \"%s\" is not available in result data. Available are: %s" % (
-                    measurementName, " ".join(sorted(r["results"].keys()))))
+        for column in columns:
+            for bar in column["bars"]:
+                measurementName = bar["measurementName"]
+                if not(measurementName in r["results"]):
+                    raise ValueError("measurement \"%s\" is not available in result data. Available are: %s" % (
+                        measurementName, " ".join(sorted(r["results"].keys()))))
 
-            # for stacked bars, add the values of all lower bars on top:
-            yOffset = 0
-            for lowerBarIndex in bar["lowerBars"]:
-                lowerBar = bars[lowerBarIndex]
-                yOffset += lowerBar["barHeights"][i]
-            bar["barBottomOffsets"].append(yOffset)
+                # for stacked bars, add the values of all lower bars on top:
+                yOffset = 0
+                for lowerBar in column["bars"]:
+                    if lowerBar == bar:
+                        break
+                    yOffset += lowerBar["barHeights"][i]
+                bar["barBottomOffsets"].append(yOffset)
 
-            valueMin = min(r["results"][measurementName])
-            valueMax = max(r["results"][measurementName])
-            bar["barHeights"].append(valueMin)
-            bar["valueRanges"].append(valueMax - valueMin)
+                valueMin = min(r["results"][measurementName])
+                valueMax = max(r["results"][measurementName])
+                bar["barHeights"].append(valueMin)
+                bar["valueRanges"].append(valueMax - valueMin)
 
-            for t in r["results"][measurementName]:
-                bar["pointsX"].append(i + column["xOffset"])
-                bar["pointsY"].append(t + yOffset)
+                for t in r["results"][measurementName]:
+                    bar["pointsX"].append(i + column["xOffset"])
+                    bar["pointsY"].append(t + yOffset)
 
         i+=1
 
@@ -170,16 +164,17 @@ def createDiagram(destPath, allResults, measurementNameStr):
 
     numResults = len(allResults)
     barWidths = [columnWidth] * numResults
-    for bar in bars:
-        column = columns[bar["columnIndex"]]
-        xOffset = column["xOffset"]
-        xValues = [v + xOffset for v in range(0, numResults)]
-        yErrors = ( [0]*numResults, bar["valueRanges"] )
 
-        ax.bar(xValues, bar["barHeights"], bottom=bar["barBottomOffsets"], width=barWidths, align="center", color=bar["color"],
-               yerr=yErrors, ecolor="black")
+    for column in columns:
+        for bar in column["bars"]:
+            xOffset = column["xOffset"]
+            xValues = [v + xOffset for v in range(0, numResults)]
+            yErrors = ( [0]*numResults, bar["valueRanges"] )
 
-        ax.plot(bar["pointsX"], bar["pointsY"], "o", color=bar["color"])
+            ax.bar(xValues, bar["barHeights"], bottom=bar["barBottomOffsets"], width=barWidths, align="center", color=bar["color"],
+                yerr=yErrors, ecolor="black")
+
+            ax.plot(bar["pointsX"], bar["pointsY"], "o", color=bar["color"])
 
     ax.xaxis.set_ticks(range(-1, numResults+1))
     ax.xaxis.set_ticklabels(xLabels, rotation=90, fontsize=8)
