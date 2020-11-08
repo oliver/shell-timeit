@@ -59,7 +59,7 @@ def readResultFile(srcPath):
     return results
 
 
-def createDiagram(destPath, allResults, measurementName):
+def createDiagram(destPath, allResults, measurementNameStr):
     import matplotlib.pyplot as plt
 
     # TODO: add all values from resource package:
@@ -69,18 +69,60 @@ def createDiagram(destPath, allResults, measurementName):
         "ru_stime": "System Mode Time [s]",
     }
 
-    if measurementName in knownMeasurementNames:
-        measurementDesc = knownMeasurementNames[measurementName]
-    else:
-        measurementDesc = measurementName
+    # determine columns and bars:
+    # (a column may contain multiple bars, which will be stacked)
+    columns = []
+    bars = []
+    columnIndex = 0
+    barIndex = 0
+    for columnString in measurementNameStr.split(","):
+        columns.append({
+            "bars": []
+        })
+        column = columns[-1]
+
+        for barString in columnString.split("+"):
+            bars.append({
+                "columnIndex": columnIndex,
+                "lowerBars": column["bars"][:],
+                "measurementName": barString,
+                "barHeights": [],
+                "barBottomOffsets": [],
+                "valueRanges": [],
+                "pointsX": [],
+                "pointsY": [],
+            })
+            column["bars"].append(barIndex)
+            barIndex+=1
+        columnIndex+=1
+
+    numColumns = len(columns)
+
+    widthOfAllColumns = 0.8
+    columnWidth = widthOfAllColumns / numColumns
+    xBaseOffset = (0 - (widthOfAllColumns / 2.)) + (columnWidth / 2.)
+
+    # calculate X offset of each column:
+    i = 0
+    for column in columns:
+        column["xOffset"] = xBaseOffset + (i * columnWidth)
+        i+=1
+
+    # set unique color for each bar:
+    colormapFunction = plt.cm.get_cmap("hsv", len(bars) + 1)
+    i = 0
+    for bar in bars:
+        bar["color"] = colormapFunction(i)
+        i+=1
+
+
+    # get diagram values
+    measurementDesc = measurementNameStr
 
     xLabels = []
-    valueMins = []
-    valueRanges = []
-    pointsX = []
-    pointsY = []
+    xLabels.append("")
     lastDate = None
-    i = 1
+    i = 0
     for r in allResults:
         if lastDate is None or lastDate != r["start"].date():
             label = r["start"].strftime("%Y-%d-%m %H:%M:%S")
@@ -95,32 +137,55 @@ def createDiagram(destPath, allResults, measurementName):
             if len(cmd) > 50:
                 cmd = cmd[:30] + ELLIPSIS_CHAR + cmd[-17:]
             label = cmd + "\n" + label
+
         xLabels.append(label)
 
-        if not(measurementName in r["results"]):
-            raise ValueError("measurement \"%s\" is not available in result data. Available are: %s" % (
-                measurementName, " ".join(sorted(r["results"].keys()))))
+        for bar in bars:
+            column = columns[bar["columnIndex"]]
+            measurementName = bar["measurementName"]
+            if not(measurementName in r["results"]):
+                raise ValueError("measurement \"%s\" is not available in result data. Available are: %s" % (
+                    measurementName, " ".join(sorted(r["results"].keys()))))
 
-        valueMin = min(r["results"][measurementName])
-        valueMax = max(r["results"][measurementName])
-        valueMins.append(valueMin)
-        valueRanges.append(valueMax - valueMin)
+            # for stacked bars, add the values of all lower bars on top:
+            yOffset = 0
+            for lowerBarIndex in bar["lowerBars"]:
+                lowerBar = bars[lowerBarIndex]
+                yOffset += lowerBar["barHeights"][i]
+            bar["barBottomOffsets"].append(yOffset)
 
-        for t in r["results"][measurementName]:
-            pointsX.append(i)
-            pointsY.append(t)
+            valueMin = min(r["results"][measurementName])
+            valueMax = max(r["results"][measurementName])
+            bar["barHeights"].append(valueMin)
+            bar["valueRanges"].append(valueMax - valueMin)
+
+            for t in r["results"][measurementName]:
+                bar["pointsX"].append(i + column["xOffset"])
+                bar["pointsY"].append(t + yOffset)
+
         i+=1
 
-    numResults = len(allResults)
-    yErrors = ( [0]*numResults, valueRanges )
-
+    # plot diagram:
     fig, ax = plt.subplots()
-    ax.set_xlim(0.5, numResults+0.5)
-    ax.bar(range(1, numResults+1), valueMins, align="center", yerr=yErrors, ecolor="black")
-    ax.plot(pointsX, pointsY, "o")
-    ax.xaxis.set_ticks(range(1, numResults+1))
+
+    numResults = len(allResults)
+    barWidths = [columnWidth] * numResults
+    for bar in bars:
+        column = columns[bar["columnIndex"]]
+        xOffset = column["xOffset"]
+        xValues = [v + xOffset for v in range(0, numResults)]
+        yErrors = ( [0]*numResults, bar["valueRanges"] )
+
+        ax.bar(xValues, bar["barHeights"], bottom=bar["barBottomOffsets"], width=barWidths, align="center", color=bar["color"],
+               yerr=yErrors, ecolor="black")
+
+        ax.plot(bar["pointsX"], bar["pointsY"], "o", color=bar["color"])
+
+    ax.xaxis.set_ticks(range(-1, numResults+1))
     ax.xaxis.set_ticklabels(xLabels, rotation=90, fontsize=8)
+    ax.set_xlim(-0.5, numResults - 0.5)
     plt.ylabel(measurementDesc)
+
     try:
         plt.tight_layout()
     except ValueError:
@@ -131,7 +196,7 @@ def createDiagram(destPath, allResults, measurementName):
 
 
 def usage():
-    print "Usage: %s [-r <num runs>] [-s|--shell] [-f|--file=<results.json>] [-m|--message <free-text message>] [-o|--output=[measurement=]<output.png/.svg>] <command line>" % sys.argv[0]
+    print "Usage: %s [-r <num runs>] [-s|--shell] [-f|--file=<results.json>] [-m|--message <free-text message>] [-o|--output=[measurement list=]<output.png/.svg>] <command line>" % sys.argv[0]
 
 if __name__ == "__main__":
     try:
@@ -213,9 +278,9 @@ if __name__ == "__main__":
 
         for pathEntry in outputFiles:
             # output file arguments may optionally be preceded by the measurement name to plot:
-            matches = re.match(r"([\w_]+)=(.+)$", pathEntry)
+            matches = re.match(r"([\w_+,]+)=(.+)$", pathEntry)
             if matches:
                 (measurementName, path) = matches.groups()
                 createDiagram(path, allResults, measurementName)
             else:
-                createDiagram(pathEntry, allResults, "wallclock")
+                createDiagram(pathEntry, allResults, "wallclock,ru_stime+ru_utime")
