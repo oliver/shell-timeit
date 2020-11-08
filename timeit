@@ -14,6 +14,7 @@ import datetime
 import timeit
 import json
 import resource
+import re
 
 
 ELLIPSIS_CHAR = u"\u2026"
@@ -58,12 +59,24 @@ def readResultFile(srcPath):
     return results
 
 
-def createDiagram(destPath, allResults):
+def createDiagram(destPath, allResults, measurementName):
     import matplotlib.pyplot as plt
 
+    # TODO: add all values from resource package:
+    knownMeasurementNames = {
+        "wallclock": "Wallclock Time [s]",
+        "ru_utime": "User Mode Time [s]",
+        "ru_stime": "System Mode Time [s]",
+    }
+
+    if measurementName in knownMeasurementNames:
+        measurementDesc = knownMeasurementNames[measurementName]
+    else:
+        measurementDesc = measurementName
+
     xLabels = []
-    wallclockMins = []
-    wallclockRanges = []
+    valueMins = []
+    valueRanges = []
     pointsX = []
     pointsY = []
     lastDate = None
@@ -84,25 +97,29 @@ def createDiagram(destPath, allResults):
             label = cmd + "\n" + label
         xLabels.append(label)
 
-        wallclockMin = min(r["results"]["wallclock"])
-        wallclockMax = max(r["results"]["wallclock"])
-        wallclockMins.append(wallclockMin)
-        wallclockRanges.append(wallclockMax - wallclockMin)
+        if not(measurementName in r["results"]):
+            raise ValueError("measurement \"%s\" is not available in result data. Available are: %s" % (
+                measurementName, " ".join(sorted(r["results"].keys()))))
 
-        for t in r["results"]["wallclock"]:
+        valueMin = min(r["results"][measurementName])
+        valueMax = max(r["results"][measurementName])
+        valueMins.append(valueMin)
+        valueRanges.append(valueMax - valueMin)
+
+        for t in r["results"][measurementName]:
             pointsX.append(i)
             pointsY.append(t)
         i+=1
 
-    yErrors = ( [0]*len(wallclockRanges), wallclockRanges )
+    yErrors = ( [0]*len(valueRanges), valueRanges )
 
     fig, ax = plt.subplots()
-    ax.set_xlim(0.5, len(wallclockMins)+0.5)
-    ax.bar(range(1, len(wallclockMins)+1), wallclockMins, align="center", yerr=yErrors, ecolor="black")
+    ax.set_xlim(0.5, len(valueMins)+0.5)
+    ax.bar(range(1, len(valueMins)+1), valueMins, align="center", yerr=yErrors, ecolor="black")
     ax.plot(pointsX, pointsY, "o")
-    ax.xaxis.set_ticks(range(1, len(wallclockMins)+1))
+    ax.xaxis.set_ticks(range(1, len(valueMins)+1))
     ax.xaxis.set_ticklabels(xLabels, rotation=90, fontsize=8)
-    plt.ylabel("Wallclock Time [s]")
+    plt.ylabel(measurementDesc)
     try:
         plt.tight_layout()
     except ValueError:
@@ -113,7 +130,7 @@ def createDiagram(destPath, allResults):
 
 
 def usage():
-    print "Usage: %s [-r <num runs>] [-s|--shell] [-f|--file=<results.json>] [-m|--message <free-text message>] [-o|--output=<output.png/.svg>] <command line>" % sys.argv[0]
+    print "Usage: %s [-r <num runs>] [-s|--shell] [-f|--file=<results.json>] [-m|--message <free-text message>] [-o|--output=[measurement=]<output.png/.svg>] <command line>" % sys.argv[0]
 
 if __name__ == "__main__":
     try:
@@ -192,5 +209,12 @@ if __name__ == "__main__":
             raise NotImplementedError("cannot create diagram for single value")
         else:
             allResults = readResultFile(resultFile)
-        for path in outputFiles:
-            createDiagram(path, allResults)
+
+        for pathEntry in outputFiles:
+            # output file arguments may optionally be preceded by the measurement name to plot:
+            matches = re.match(r"([\w_]+)=(.+)$", pathEntry)
+            if matches:
+                (measurementName, path) = matches.groups()
+                createDiagram(path, allResults, measurementName)
+            else:
+                createDiagram(pathEntry, allResults, "wallclock")
