@@ -111,13 +111,14 @@ def createDiagram(destPath, allResults, measurementName):
             pointsY.append(t)
         i+=1
 
-    yErrors = ( [0]*len(valueRanges), valueRanges )
+    numResults = len(allResults)
+    yErrors = ( [0]*numResults, valueRanges )
 
     fig, ax = plt.subplots()
-    ax.set_xlim(0.5, len(valueMins)+0.5)
-    ax.bar(range(1, len(valueMins)+1), valueMins, align="center", yerr=yErrors, ecolor="black")
+    ax.set_xlim(0.5, numResults+0.5)
+    ax.bar(range(1, numResults+1), valueMins, align="center", yerr=yErrors, ecolor="black")
     ax.plot(pointsX, pointsY, "o")
-    ax.xaxis.set_ticks(range(1, len(valueMins)+1))
+    ax.xaxis.set_ticks(range(1, numResults+1))
     ax.xaxis.set_ticklabels(xLabels, rotation=90, fontsize=8)
     plt.ylabel(measurementDesc)
     try:
