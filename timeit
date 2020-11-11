@@ -62,26 +62,53 @@ def readResultFile(srcPath):
 def createDiagram(destPath, allResults, measurementNameStr):
     import matplotlib.pyplot as plt
 
+    # constants for possible units:
+    UNIT_COUNT = 1
+    UNIT_SECONDS = 2
+    UNIT_KILOBYTES = 3
+
+    unitNames = {
+        UNIT_COUNT: "Count",
+        UNIT_SECONDS: "Seconds",
+        UNIT_KILOBYTES: "Kilobytes",
+    }
+
     # TODO: add all values from resource package:
     knownMeasurementNames = {
-        "wallclock": "Wallclock Time [s]",
-        "ru_utime": "User Mode Time [s]",
-        "ru_stime": "System Mode Time [s]",
+        "wallclock": ("Wallclock Time", UNIT_SECONDS),
+        "ru_utime": ("User Mode Time", UNIT_SECONDS),
+        "ru_stime": ("System Mode Time", UNIT_SECONDS),
+        "ru_maxrss": ("Maximum resident set size", UNIT_KILOBYTES),
+        "ru_minflt": ("Page faults not requiring I/O", UNIT_COUNT),
     }
 
     # determine columns and bars:
     # (a column may contain multiple bars, which will be stacked)
     columns = []
     numBars = 0
+    yAxes = []
     for columnString in measurementNameStr.split(","):
         columns.append({
             "bars": []
         })
         column = columns[-1]
 
-        for barString in columnString.split("+"):
+        for measurementName in columnString.split("+"):
+            if measurementName in knownMeasurementNames:
+                (measurementDesc, unit) = knownMeasurementNames[measurementName]
+            else:
+                (measurementDesc, unit) = (measurementName, UNIT_COUNT) # fallback
+
+            yAxis = next(iter(filter(lambda a: a["unit"] == unit, yAxes)), None)
+            if yAxis is None:
+                yAxes.append({
+                    "unit": unit,
+                })
+
             column["bars"].append({
-                "measurementName": barString,
+                "measurementName": measurementName,
+                "measurementDesc": measurementDesc,
+                "unit": unit,
                 "barHeights": [],
                 "barBottomOffsets": [],
                 "valueRanges": [],
@@ -89,6 +116,10 @@ def createDiagram(destPath, allResults, measurementNameStr):
                 "pointsY": [],
             })
             numBars+=1
+
+    if len(yAxes) > 2:
+        raise ValueError("cannot display values with more than two different units")
+
     numColumns = len(columns)
 
     widthOfAllColumns = 0.8
@@ -160,7 +191,14 @@ def createDiagram(destPath, allResults, measurementNameStr):
         i+=1
 
     # plot diagram:
-    fig, ax = plt.subplots()
+    fig, ax1 = plt.subplots()
+    yAxes[0]["axisObj"] = ax1
+    if len(yAxes) > 1:
+        yAxes[1]["axisObj"] = ax1.twinx() # add a second axis
+
+    for axis in yAxes:
+        label = unitNames[axis["unit"]]
+        axis["axisObj"].set_ylabel(label)
 
     numResults = len(allResults)
     barWidths = [columnWidth] * numResults
@@ -171,22 +209,27 @@ def createDiagram(destPath, allResults, measurementNameStr):
             xValues = [v + xOffset for v in range(0, numResults)]
             yErrors = ( [0]*numResults, bar["valueRanges"] )
 
-            ax.bar(xValues, bar["barHeights"], bottom=bar["barBottomOffsets"], width=barWidths, align="center", color=bar["color"],
-                yerr=yErrors, ecolor="black")
+            axis = next(iter(filter(lambda a: a["unit"] == bar["unit"], yAxes)))
 
-            ax.plot(bar["pointsX"], bar["pointsY"], "o", color=bar["color"])
+            axis["axisObj"].bar(xValues, bar["barHeights"], bottom=bar["barBottomOffsets"], width=barWidths, align="center", color=bar["color"],
+                yerr=yErrors, ecolor="black", label=bar["measurementDesc"])
 
-    ax.xaxis.set_ticks(range(-1, numResults+1))
-    ax.xaxis.set_ticklabels(xLabels, rotation=90, fontsize=8)
-    ax.set_xlim(-0.5, numResults - 0.5)
-    plt.ylabel(measurementDesc)
+            axis["axisObj"].plot(bar["pointsX"], bar["pointsY"], "o", color=bar["color"])
+
+    ax1.xaxis.set_ticks(range(-1, numResults+1))
+    ax1.xaxis.set_ticklabels(xLabels, rotation=90, fontsize=8)
+    ax1.set_xlim(-0.5, numResults - 0.5)
+
+    ax1.legend(loc="upper left", fontsize=10, framealpha=0.5)
+    if len(yAxes) > 1:
+        yAxes[1]["axisObj"].legend(loc="upper right", fontsize=10, framealpha=0.5)
 
     try:
         plt.tight_layout()
     except ValueError:
         # workaround for https://github.com/matplotlib/matplotlib/issues/5456 which occurs with very long labels:
         print "Note: could not apply tight layout; using default margins instead."
-        ax.margins(0.1, 0.1)
+        ax1.margins(0.1, 0.1)
     plt.savefig(destPath)
 
 
