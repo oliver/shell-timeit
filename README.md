@@ -28,3 +28,13 @@ Result:
 The bars show the lowest execution time; the small dots are the results of each single run.
 
 The diagram displays lowest time prominently because this is the fastest time that was achievable with the specified settings; the higher values just indicate that something interfered with the run.
+
+By default the diagram shows "wallclock seconds", ie. elapsed time, and also system and user CPU time.
+Other types of measurement can be displayed by specifying the measurement name before the diagram output file name, separated by "=".
+Multiple measurements can be displayed in a single diagram by listing their names separated by ",".
+Measurement values can be stacked by separating their names with "+".
+
+Hence, the default diagram style can also be achieved like this:  
+`timeit -f dd.json -o wallclock,ru_utime+ru_stime=dd.png`
+
+For a list of available measurement names, refer to the [documentation of Python `resource` module](https://docs.python.org/2/library/resource.html#resource-usage) or the `getrusage(2)` man page.
