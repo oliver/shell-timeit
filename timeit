@@ -287,7 +287,10 @@ if __name__ == "__main__":
         for i in range(numRuns):
             startUsage = resource.getrusage(resource.RUSAGE_CHILDREN)
             startTime = timeit.default_timer()
-            subprocess.call(command, shell=runInShell)
+            try:
+                subprocess.call(command, shell=runInShell)
+            except OSError, ex:
+                print "Error: failed to run command: %s. Command line used: %s" % (ex, command)
             endTime = timeit.default_timer()
             endUsage = resource.getrusage(resource.RUSAGE_CHILDREN)
 
