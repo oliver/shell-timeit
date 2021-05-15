@@ -38,3 +38,10 @@ Hence, the default diagram style can also be achieved like this:
 `timeit -f dd.json -o wallclock,ru_utime+ru_stime=dd.png`
 
 For a list of available measurement names, refer to the [documentation of Python `resource` module](https://docs.python.org/2/library/resource.html#resource-usage) or the `getrusage(2)` man page.
+
+## Alternative Tools
+* [Bench](https://github.com/Gabriel439/bench)
+* [hyperfine](https://github.com/sharkdp/hyperfine)
+
+Similar to git-timeit:
+* [chronologer](https://github.com/dandavison/chronologer)
