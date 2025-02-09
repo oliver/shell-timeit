@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 #
 # Runs a command several times, measures execution time, and prints combined results of all runs
