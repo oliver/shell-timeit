@@ -12,7 +12,7 @@
 # - describe how to test very first commit as well
 
 
-baseFileName=./git-timeit-results-$(date +%Y-%m-%dT%H:%M:%S)
+baseFileName=./git-timeit-results-$(date +%Y-%m-%dT%H-%M-%S)
 
 prepCmd=
 declare -a testCmd
