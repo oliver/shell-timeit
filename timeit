@@ -224,7 +224,7 @@ def createDiagram(destPath, allResults, measurementNameStr):
 
             axis["axisObj"].plot(bar["pointsX"], bar["pointsY"], "o", color=bar["color"])
 
-    ax1.xaxis.set_ticks(list(range(-1, numResults+1)))
+    ax1.xaxis.set_ticks(list(range(-1, numResults)))
     ax1.xaxis.set_ticklabels(xLabels, rotation=90, fontsize=8)
     ax1.set_xlim(-0.5, numResults - 0.5)
 
