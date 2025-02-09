@@ -15,6 +15,7 @@ import timeit
 import json
 import resource
 import re
+import platform
 
 
 ELLIPSIS_CHAR = u"\u2026"
@@ -24,6 +25,7 @@ def appendResults(destPath, message, startTime, endTime, command, resultMap):
     data = {
         "start":datetime.datetime.utcfromtimestamp(startTime).isoformat() + "Z",
         "end":datetime.datetime.utcfromtimestamp(endTime).isoformat() + "Z",
+        "hostname":platform.node(),
         "command":command,
         "results":{}
             }
