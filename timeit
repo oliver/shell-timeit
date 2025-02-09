@@ -298,11 +298,14 @@ if __name__ == "__main__":
         overallStartTime = time.time()
         results = {"wallclock":[], "exitcode":[]}
         for i in range(numRuns):
+            subprocessEnv = os.environ.copy()
+            subprocessEnv["TIMEIT_RUN_INDEX"] = "%d" % i
+            subprocessEnv["TIMEIT_NUM_RUNS"] = "%d" % numRuns
             startUsage = resource.getrusage(resource.RUSAGE_CHILDREN)
             startTime = timeit.default_timer()
             exitCode = -1
             try:
-                exitCode = subprocess.call(command, shell=runInShell)
+                exitCode = subprocess.call(command, shell=runInShell, env=subprocessEnv)
             except OSError, ex:
                 print "Error: failed to run command: %s. Command line used: %s" % (ex, command)
             results["exitcode"].append(exitCode)
