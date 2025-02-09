@@ -285,14 +285,16 @@ if __name__ == "__main__":
                 open(resultFile, "w").close()
 
         overallStartTime = time.time()
-        results = {"wallclock":[]}
+        results = {"wallclock":[], "exitcode":[]}
         for i in range(numRuns):
             startUsage = resource.getrusage(resource.RUSAGE_CHILDREN)
             startTime = timeit.default_timer()
+            exitCode = -1
             try:
-                subprocess.call(command, shell=runInShell)
+                exitCode = subprocess.call(command, shell=runInShell)
             except OSError, ex:
                 print "Error: failed to run command: %s. Command line used: %s" % (ex, command)
+            results["exitcode"].append(exitCode)
             endTime = timeit.default_timer()
             endUsage = resource.getrusage(resource.RUSAGE_CHILDREN)
 
