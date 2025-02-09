@@ -12,7 +12,8 @@
 # - describe how to test very first commit as well
 
 
-baseFileName=./git-timeit-results-$(date +%Y-%m-%dT%H-%M-%S)
+startTime=$(date +%Y-%m-%dT%H-%M-%S)
+baseFileName=./git-timeit-results-$startTime
 
 prepCmd=
 declare -a testCmd
@@ -106,12 +107,16 @@ for (( idx=${#revList[@]}-1; idx>=0; idx-- )) ; do
         bash -c "$prepCmd"
         res=$?
         if [ $res -ne 0 ]; then
+            # add "|| true" to the preparation command line to avoid this:
             echo "Error: preparation command exited with error code $res."
             exit 1
         fi
     fi
 
     echo "running timeit for command: ${testCmd[@]}"
+    export GIT_TIMEIT_START_TIME=$startTime
+    export GIT_TIMEIT_REV=$rev
+    export GIT_TIMEIT_REV_DESC=$revDesc
     timeit "${timeitArgs[@]}" -m "$revDesc" -f "$resultFile" "${testCmd[@]}"
     echo ""
 done
