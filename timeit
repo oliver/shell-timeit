@@ -60,6 +60,8 @@ def readResultFile(srcPath):
 
 
 def createDiagram(destPath, allResults, measurementNameStr):
+    import matplotlib
+    matplotlib.use("Agg") # explicitly set backend, to avoid dependency on tkinter
     import matplotlib.pyplot as plt
 
     # constants for possible units:
