@@ -150,6 +150,7 @@ def createDiagram(destPath, allResults, measurementNameStr):
     xLabels = []
     xLabels.append("")
     lastDate = None
+    hostnames = []
     i = 0
     for r in allResults:
         if lastDate is None or lastDate != r["start"].date():
@@ -167,6 +168,9 @@ def createDiagram(destPath, allResults, measurementNameStr):
             label = cmd + "\n" + label
 
         xLabels.append(label)
+
+        if "hostname" in r and r["hostname"] not in hostnames:
+            hostnames.append(r["hostname"])
 
         for column in columns:
             for bar in column["bars"]:
@@ -227,6 +231,11 @@ def createDiagram(destPath, allResults, measurementNameStr):
     ax1.legend(loc="upper left", fontsize=10, framealpha=0.5)
     if len(yAxes) > 1:
         yAxes[1]["axisObj"].legend(loc="upper right", fontsize=10, framealpha=0.5)
+
+    diagramTitle = "Timeit Measurements"
+    if hostnames:
+        diagramTitle += " from " + (", ".join(hostnames))
+    ax1.set_title(diagramTitle)
 
     try:
         plt.tight_layout()
