@@ -88,14 +88,17 @@ if [ -z "$revisions" ]; then
     exit 1
 fi
 read -d '' -r -a revList <<< "$revisions"
-echo "testing ${#revList[@]} revisions"
+numRevisions=${#revList[@]}
+echo "testing $numRevisions revisions"
 
 originalBranch=$(git rev-parse --abbrev-ref HEAD)
 
 # iterate over revisions in reverse order:
 for (( idx=${#revList[@]}-1; idx>=0; idx-- )) ; do
     rev=${revList[idx]}
-    echo "checking out revision \"$rev\""
+    revDesc=$(git show -s --pretty=format:"%h %s" "$rev" | cut -c 1-50)
+    progressIndex=$(($numRevisions - $idx))
+    echo "checking out revision #$progressIndex/${#revList[@]} ($revDesc)"
 
     git checkout -q "$rev"
     if [ -n "$prepCmd" ]; then
@@ -108,10 +111,12 @@ for (( idx=${#revList[@]}-1; idx>=0; idx-- )) ; do
         fi
     fi
 
-    echo "running timeit"
-    revDesc=$(git show -s --pretty=format:"%h %s" "$rev" | cut -c 1-50)
+    echo "running timeit for command: ${testCmd[@]}"
     timeit "${timeitArgs[@]}" -m "$revDesc" -f "$resultFile" "${testCmd[@]}"
+    echo ""
 done
 
 git checkout "$originalBranch"
+echo "generating diagram from $resultFile"
 timeit -f "$resultFile" -o "$outputFile"
+echo "finished"
