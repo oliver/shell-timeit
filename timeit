@@ -18,7 +18,7 @@ import re
 import platform
 
 
-ELLIPSIS_CHAR = u"\u2026"
+ELLIPSIS_CHAR = "\u2026"
 
 
 def appendResults(destPath, message, startTime, endTime, command, resultMap):
@@ -30,7 +30,7 @@ def appendResults(destPath, message, startTime, endTime, command, resultMap):
         "results":{}
             }
 
-    for key in resultMap.keys():
+    for key in list(resultMap.keys()):
         data["results"][key] = resultMap[key]
 
     if message is not None:
@@ -103,7 +103,7 @@ def createDiagram(destPath, allResults, measurementNameStr):
             else:
                 (measurementDesc, unit) = (measurementName, UNIT_COUNT) # fallback
 
-            yAxis = next(iter(filter(lambda a: a["unit"] == unit, yAxes)), None)
+            yAxis = next(iter([a for a in yAxes if a["unit"] == unit]), None)
             if yAxis is None:
                 yAxes.append({
                     "unit": unit,
@@ -217,14 +217,14 @@ def createDiagram(destPath, allResults, measurementNameStr):
             xValues = [v + xOffset for v in range(0, numResults)]
             yErrors = ( [0]*numResults, bar["valueRanges"] )
 
-            axis = next(iter(filter(lambda a: a["unit"] == bar["unit"], yAxes)))
+            axis = next(iter([a for a in yAxes if a["unit"] == bar["unit"]]))
 
             axis["axisObj"].bar(xValues, bar["barHeights"], bottom=bar["barBottomOffsets"], width=barWidths, align="center", color=bar["color"],
                 yerr=yErrors, ecolor="black", label=bar["measurementDesc"])
 
             axis["axisObj"].plot(bar["pointsX"], bar["pointsY"], "o", color=bar["color"])
 
-    ax1.xaxis.set_ticks(range(-1, numResults+1))
+    ax1.xaxis.set_ticks(list(range(-1, numResults+1)))
     ax1.xaxis.set_ticklabels(xLabels, rotation=90, fontsize=8)
     ax1.set_xlim(-0.5, numResults - 0.5)
 
@@ -241,19 +241,19 @@ def createDiagram(destPath, allResults, measurementNameStr):
         plt.tight_layout()
     except ValueError:
         # workaround for https://github.com/matplotlib/matplotlib/issues/5456 which occurs with very long labels:
-        print "Note: could not apply tight layout; using default margins instead."
+        print("Note: could not apply tight layout; using default margins instead.")
         ax1.margins(0.1, 0.1)
     plt.savefig(destPath)
 
 
 def usage():
-    print "Usage: %s [-r <num runs>] [-s|--shell] [-f|--file=<results.json>] [-m|--message <free-text message>] [-o|--output=[measurement list=]<output.png/.svg>] <command line>" % sys.argv[0]
+    print("Usage: %s [-r <num runs>] [-s|--shell] [-f|--file=<results.json>] [-m|--message <free-text message>] [-o|--output=[measurement list=]<output.png/.svg>] <command line>" % sys.argv[0])
 
 if __name__ == "__main__":
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hr:sf:m:o:", ["help", "runs=", "shell", "file=", "message=", "output="])
     except getopt.GetoptError as err:
-        print str(err)
+        print(str(err))
         usage()
         sys.exit(2)
 
@@ -280,13 +280,13 @@ if __name__ == "__main__":
             assert False, "internal error (unhandled option)"
 
     if numRuns < 1:
-        print "error: -r parameter must be >= 1"
+        print("error: -r parameter must be >= 1")
         sys.exit(2)
 
     command = args
 
     if not(command) and not(outputFiles):
-        print "error: must specify at least a command or an output file"
+        print("error: must specify at least a command or an output file")
         usage()
         sys.exit(2)
 
@@ -306,8 +306,8 @@ if __name__ == "__main__":
             exitCode = -1
             try:
                 exitCode = subprocess.call(command, shell=runInShell, env=subprocessEnv)
-            except OSError, ex:
-                print "Error: failed to run command: %s. Command line used: %s" % (ex, command)
+            except OSError as ex:
+                print("Error: failed to run command: %s. Command line used: %s" % (ex, command))
             results["exitcode"].append(exitCode)
             endTime = timeit.default_timer()
             endUsage = resource.getrusage(resource.RUSAGE_CHILDREN)
