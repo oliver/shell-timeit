@@ -103,7 +103,8 @@ for (( idx=${#revList[@]}-1; idx>=0; idx-- )) ; do
         bash -c "$prepCmd"
         res=$?
         if [ $res -ne 0 ]; then
-            echo "preparation command exited with error code $res - continuing."
+            echo "Error: preparation command exited with error code $res."
+            exit 1
         fi
     fi
 
